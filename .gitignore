@@ -1,0 +1,23 @@
+# Environment
+.env
+.venv/
+__pycache__/
+*.pyc
+
+# Raw fetched content (large, regenerable)
+raw/*.html
+raw/*.json
+!raw/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+dist/
+build/
+*.egg-info/

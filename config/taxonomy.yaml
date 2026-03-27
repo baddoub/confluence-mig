@@ -1,0 +1,118 @@
+# Taxonomy rules for classifying legacy Confluence pages
+# Used by scripts/taxonomy.py and the /restructure skill
+#
+# Each category has:
+#   - keywords: terms found in page title or content that suggest this category
+#   - patterns: regex patterns matched against page titles
+#   - target_dir: where to place matched pages in docs/
+
+categories:
+  product:
+    keywords:
+      - product
+      - requirement
+      - feature
+      - user story
+      - acceptance criteria
+      - roadmap
+      - milestone
+      - release plan
+      - vision
+      - value proposition
+    patterns:
+      - "^REQ-\\d+"
+      - "(?i)product\\s+(overview|spec|requirement)"
+    target_dir: docs/product
+
+  architecture:
+    keywords:
+      - architecture
+      - design
+      - system diagram
+      - service
+      - component
+      - microservice
+      - data flow
+      - sequence diagram
+      - tech stack
+    patterns:
+      - "^ADR-\\d+"
+      - "(?i)(system|service|architecture)\\s+(design|overview|diagram)"
+    target_dir: docs/architecture
+
+  runbook:
+    keywords:
+      - runbook
+      - incident
+      - procedure
+      - troubleshoot
+      - playbook
+      - on-call
+      - escalation
+      - rollback
+      - recovery
+      - alert
+      - deploy procedure
+    patterns:
+      - "(?i)(runbook|playbook|incident|troubleshoot)"
+      - "(?i)how\\s+to\\s+(deploy|rollback|restart|recover)"
+    target_dir: docs/runbooks
+
+  onboarding:
+    keywords:
+      - onboarding
+      - getting started
+      - setup
+      - new developer
+      - local development
+      - dev environment
+      - coding standards
+      - workflow
+      - PR process
+    patterns:
+      - "(?i)(onboarding|getting\\s+started|new\\s+(dev|developer|hire))"
+      - "(?i)(local|dev)\\s+(setup|environment)"
+    target_dir: docs/onboarding
+
+  api:
+    keywords:
+      - API
+      - endpoint
+      - REST
+      - GraphQL
+      - webhook
+      - authentication
+      - authorization
+      - swagger
+      - OpenAPI
+      - integration
+    patterns:
+      - "(?i)(api|endpoint|rest|graphql)\\s+(reference|doc|guide)"
+      - "(?i)(swagger|openapi)"
+    target_dir: docs/api
+
+  infrastructure:
+    keywords:
+      - infrastructure
+      - AWS
+      - GCP
+      - Azure
+      - Kubernetes
+      - Docker
+      - CI/CD
+      - pipeline
+      - terraform
+      - monitoring
+      - observability
+      - logging
+      - alerting
+      - networking
+    patterns:
+      - "(?i)(infra|infrastructure|cloud|k8s|kubernetes)"
+      - "(?i)(ci/?cd|pipeline|terraform|docker)"
+      - "(?i)(monitoring|observability|alerting|logging)"
+    target_dir: docs/infrastructure
+
+# Default category when no rules match
+default_category: architecture
+default_target_dir: docs/architecture

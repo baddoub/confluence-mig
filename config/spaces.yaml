@@ -1,0 +1,20 @@
+# Confluence space configuration
+# Values here are defaults; env vars override them
+
+legacy:
+  # Source space to migrate from
+  space_key: "${LEGACY_SPACE_KEY}"
+  # Optional: limit fetch to specific root page and its children
+  root_page_id: null
+
+new:
+  # Destination space for restructured docs
+  space_key: "${NEW_SPACE_KEY}"
+  # Parent page hierarchy mapping (docs/ dir → Confluence parent page title)
+  hierarchy:
+    product: "Product"
+    architecture: "Architecture"
+    runbooks: "Runbooks"
+    onboarding: "Onboarding"
+    api: "API Reference"
+    infrastructure: "Infrastructure"
