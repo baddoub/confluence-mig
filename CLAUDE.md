@@ -78,12 +78,13 @@ New docs must start from a template in `templates/`:
 
 ```
 /fetch                          # 1. Snapshot legacy pages (read-only)
-/restructure                    # 2. Classify & place into docs/
-/validate                       # 3. Check quality
-python scripts/publish.py --preview  # 4. Review HTML output locally
-python scripts/publish.py --dry-run  # 5. See what would happen
-/publish                        # 6. Actually publish to new space
-python scripts/publish.py --rollback # 7. Undo if needed
+/discover                       # 2. Analyze content, review taxonomy fit
+/restructure                    # 3. Classify & place into docs/
+/validate                       # 4. Check quality
+python scripts/publish.py --preview  # 5. Review HTML output locally
+python scripts/publish.py --dry-run  # 6. See what would happen
+/publish                        # 7. Actually publish to new space
+python scripts/publish.py --rollback # 8. Undo if needed
 ```
 
 ## Available Skills
@@ -91,6 +92,7 @@ python scripts/publish.py --rollback # 7. Undo if needed
 | Skill | Purpose |
 |---|---|
 | `/fetch` | Pull pages from legacy Confluence space into `raw/` (snapshots) |
+| `/discover` | Analyze fetched content: distribution, gaps, ambiguous pages, taxonomy fit |
 | `/restructure` | Classify and reorganize fetched content into `docs/` taxonomy |
 | `/publish` | Push docs back to new Confluence space (with preview/rollback) |
 | `/audit` | Gap analysis: legacy pages vs migrated docs |
@@ -125,4 +127,5 @@ python scripts/audit.py
 
 - `config/spaces.yaml` — Confluence space keys and hierarchy mapping
 - `config/taxonomy.yaml` — Keyword/pattern rules for classifying pages into categories
+- `config/signals.yaml` — Structural intent patterns for detecting how content is written
 - `.env` — Credentials (never committed)
