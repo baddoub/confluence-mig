@@ -29,9 +29,11 @@ categories:
       - architecture
       - design
       - system diagram
+      - module
       - service
       - component
-      - microservice
+      - bounded context
+      - domain
       - data flow
       - sequence diagram
       - tech stack

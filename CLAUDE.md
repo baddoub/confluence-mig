@@ -6,12 +6,14 @@ This repo migrates a legacy Confluence space into structured, categorized markdo
 
 `docs/product/` is the anchor for all documentation. It defines what the product is, who it's for, and what it does. All other sections reference this context. Product details are extracted from the legacy Confluence space during `/fetch`.
 
+The product is a **modular monolith** — a single deployable unit composed of domain modules with clear boundaries. Each module owns a business domain (e.g., users, billing, orders) and has its own doc in `docs/architecture/modules/`.
+
 ## Doc Taxonomy
 
 | Directory | What goes here |
 |---|---|
 | `docs/product/` | Product vision, feature requirements (`REQ-NNNN-*.md`), user stories, roadmap |
-| `docs/architecture/` | System design, service docs, ADRs (`ADR-NNNN-*.md`) |
+| `docs/architecture/` | System overview, module docs (`modules/`), ADRs (`adrs/ADR-NNNN-*.md`) |
 | `docs/runbooks/` | Operational procedures, incident response, troubleshooting guides |
 | `docs/onboarding/` | Developer setup, workflow guides, environment descriptions |
 | `docs/api/` | API reference, endpoint docs, integration guides |
@@ -51,7 +53,7 @@ New docs must start from a template in `templates/`:
 |---|---|
 | `product-requirement.md` | Feature specs, user stories |
 | `adr.md` | Architecture Decision Records |
-| `service-overview.md` | Service/component documentation |
+| `module-overview.md` | Domain module documentation (boundaries, public interface, data ownership) |
 | `runbook.md` | Operational procedures |
 | `onboarding-guide.md` | Onboarding & setup guides |
 | `api-reference.md` | API endpoint documentation |

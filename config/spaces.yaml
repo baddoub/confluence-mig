@@ -2,10 +2,8 @@
 # Values here are defaults; env vars override them
 
 legacy:
-  # Source space to migrate from
+  # Source space to migrate from (read-only, never modified)
   space_key: "${LEGACY_SPACE_KEY}"
-  # Optional: limit fetch to specific root page and its children
-  root_page_id: null
 
 new:
   # Destination space for restructured docs

@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-import yaml
+from scripts.utils import parse_frontmatter
 
 RAW_DIR = Path("raw/current")
 RAW_DIR_FALLBACK = Path("raw")
@@ -20,22 +20,11 @@ def load_legacy_pages() -> list[dict]:
     return pages
 
 
-def parse_frontmatter(filepath: Path) -> dict:
-    """Parse YAML frontmatter from a markdown file."""
-    text = filepath.read_text(encoding="utf-8")
-    if not text.startswith("---"):
-        return {}
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}
-    return yaml.safe_load(parts[1]) or {}
-
-
 def load_migrated_docs() -> list[dict]:
     """Load frontmatter from all docs."""
     docs = []
     for md_file in sorted(DOCS_DIR.rglob("*.md")):
-        meta = parse_frontmatter(md_file)
+        meta, _ = parse_frontmatter(md_file)
         meta["_path"] = str(md_file)
         docs.append(meta)
     return docs

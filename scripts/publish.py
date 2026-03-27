@@ -17,42 +17,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
-
 from scripts.confluence_client import ConfluenceClient
+from scripts.utils import load_space_config, parse_frontmatter, update_frontmatter
 
 DOCS_DIR = Path("docs")
 PREVIEW_DIR = Path("preview")
 PUBLISH_LOG_PATH = Path("raw") / "publish_log.json"
-
-
-def load_space_config() -> dict:
-    with open("config/spaces.yaml") as f:
-        return yaml.safe_load(f)
-
-
-def parse_frontmatter(filepath: Path) -> tuple[dict, str]:
-    """Parse YAML frontmatter and body from a markdown file."""
-    text = filepath.read_text(encoding="utf-8")
-    if not text.startswith("---"):
-        return {}, text
-
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}, text
-
-    meta = yaml.safe_load(parts[1]) or {}
-    body = parts[2].strip()
-    return meta, body
-
-
-def update_frontmatter(filepath: Path, updates: dict):
-    """Update specific frontmatter fields in a file."""
-    meta, body = parse_frontmatter(filepath)
-    meta.update(updates)
-
-    frontmatter = yaml.dump(meta, default_flow_style=False, sort_keys=False).strip()
-    filepath.write_text(f"---\n{frontmatter}\n---\n\n{body}\n", encoding="utf-8")
 
 
 def markdown_to_confluence_storage(markdown_body: str) -> str:

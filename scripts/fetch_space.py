@@ -7,33 +7,18 @@ fetches are preserved for rollback.
 
 import argparse
 import json
-import re
 import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
-
 from scripts.confluence_client import ConfluenceClient
+from scripts.utils import load_space_config, slugify
 
 RAW_DIR = Path("raw")
 SNAPSHOTS_DIR = RAW_DIR / "snapshots"
 CURRENT_DIR = RAW_DIR / "current"
 MANIFEST_PATH = RAW_DIR / "manifest.json"
-
-
-def slugify(title: str) -> str:
-    """Convert a page title to a filesystem-safe slug."""
-    slug = title.lower().strip()
-    slug = re.sub(r"[^\w\s-]", "", slug)
-    slug = re.sub(r"[\s_]+", "-", slug)
-    return slug.strip("-")[:80]
-
-
-def load_space_config() -> dict:
-    with open("config/spaces.yaml") as f:
-        return yaml.safe_load(f)
 
 
 def fetch_page_with_body(client: ConfluenceClient, page_id: str) -> dict:
