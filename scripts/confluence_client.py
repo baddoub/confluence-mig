@@ -1,8 +1,6 @@
 """Confluence Cloud REST API v2 client wrapper."""
 
 import os
-import time
-from pathlib import Path
 from urllib.parse import urljoin
 
 import requests

@@ -21,8 +21,6 @@ def classify_page(title: str, content: str, labels: list[str], taxonomy: dict) -
     categories = taxonomy.get("categories", {})
     scores: dict[str, float] = {}
 
-    text = f"{title}\n{' '.join(labels)}\n{content}".lower()
-
     for category, rules in categories.items():
         score = 0.0
 

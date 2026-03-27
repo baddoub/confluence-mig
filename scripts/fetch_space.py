@@ -74,7 +74,6 @@ def main():
 
     config = load_space_config()
     legacy_key = config["legacy"]["space_key"]
-    root_page_id = config["legacy"].get("root_page_id")
 
     client = ConfluenceClient()
 

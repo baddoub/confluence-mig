@@ -1,7 +1,6 @@
 """Publish markdown docs from docs/ to the new Confluence space."""
 
 import argparse
-import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -56,7 +55,6 @@ def markdown_to_confluence_storage(markdown_body: str) -> str:
         return md_parser(markdown_body)
     except ImportError:
         # Fallback: wrap in basic HTML (lossy but functional)
-        import markdownify
         from markdown import markdown
 
         return markdown(markdown_body, extensions=["tables", "fenced_code"])

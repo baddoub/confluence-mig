@@ -7,7 +7,7 @@ dependencies = [
     "atlassian-python-api>=3.41.0",
     "beautifulsoup4>=4.12.0",
     "markdownify>=0.13.0",
-    "md2cf>=2.4.0",
+    "md2cf>=2.0.0",
     "pyyaml>=6.0",
     "python-dotenv>=1.0.0",
 ]
@@ -22,6 +22,9 @@ dev = [
 line-length = 100
 target-version = "py311"
 
+[tool.hatch.build.targets.wheel]
+packages = ["scripts"]
+
 [build-system]
 requires = ["hatchling"]
-build-backend = "hatchling.backends"
+build-backend = "hatchling.build"
