@@ -5,9 +5,14 @@ __pycache__/
 *.pyc
 
 # Raw fetched content (large, regenerable)
+raw/current/
+raw/snapshots/
 raw/*.html
 raw/*.json
 !raw/.gitkeep
+
+# Preview output (regenerable)
+preview/
 
 # IDE
 .vscode/

@@ -45,6 +45,11 @@ class ConfluenceClient:
         resp.raise_for_status()
         return resp.json()
 
+    def _delete(self, path: str) -> None:
+        url = self._api_url(path)
+        resp = self.session.delete(url)
+        resp.raise_for_status()
+
     # --- Space operations ---
 
     def get_space_by_key(self, space_key: str) -> dict:
@@ -129,6 +134,10 @@ class ConfluenceClient:
             "version": {"number": version + 1},
         }
         return self._put(f"/wiki/api/v2/pages/{page_id}", payload)
+
+    def delete_page(self, page_id: str) -> None:
+        """Delete a page (used for rollback of published pages)."""
+        self._delete(f"/wiki/api/v2/pages/{page_id}")
 
     # --- Search ---
 

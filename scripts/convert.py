@@ -8,7 +8,8 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
 
-RAW_DIR = Path("raw")
+RAW_DIR = Path("raw/current")
+RAW_DIR_FALLBACK = Path("raw")
 OUTPUT_DIR = Path("converted")
 
 
@@ -109,9 +110,11 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(exist_ok=True)
 
-    html_files = sorted(RAW_DIR.glob("*.html"))
+    # Prefer raw/current/ (snapshot-based), fall back to raw/ (legacy layout)
+    source_dir = RAW_DIR if RAW_DIR.exists() else RAW_DIR_FALLBACK
+    html_files = sorted(source_dir.glob("*.html"))
     if not html_files:
-        print("No HTML files found in raw/. Run fetch_space.py first.")
+        print("No HTML files found in raw/current/ or raw/. Run fetch_space.py first.")
         return
 
     converted = 0

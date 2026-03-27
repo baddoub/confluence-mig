@@ -63,13 +63,34 @@ New docs must start from a template in `templates/`:
 - **ADRs**: Must have "Status", "Context", "Decision", "Consequences" sections
 - **All docs**: Must have complete frontmatter, no broken relative links
 
+## Safety & Rollback
+
+**The migration is non-destructive.** Legacy pages are read-only — never modified or deleted.
+
+- **`/fetch`** creates timestamped snapshots in `raw/snapshots/`. Previous fetches are preserved. Restore any snapshot with `--restore TIMESTAMP`.
+- **`/publish`** only writes to the **new** space. Every run is logged to `raw/publish_log.json`. Undo with `--rollback`.
+- **`/publish --preview`** converts docs to HTML in `preview/` so you can inspect the output before touching Confluence.
+- **`/publish --dry-run`** shows what would be created/updated without making API calls.
+
+### Migration workflow (safe)
+
+```
+/fetch                          # 1. Snapshot legacy pages (read-only)
+/restructure                    # 2. Classify & place into docs/
+/validate                       # 3. Check quality
+python scripts/publish.py --preview  # 4. Review HTML output locally
+python scripts/publish.py --dry-run  # 5. See what would happen
+/publish                        # 6. Actually publish to new space
+python scripts/publish.py --rollback # 7. Undo if needed
+```
+
 ## Available Skills
 
 | Skill | Purpose |
 |---|---|
-| `/fetch` | Pull pages from legacy Confluence space into `raw/` |
+| `/fetch` | Pull pages from legacy Confluence space into `raw/` (snapshots) |
 | `/restructure` | Classify and reorganize fetched content into `docs/` taxonomy |
-| `/publish` | Push docs back to new Confluence space |
+| `/publish` | Push docs back to new Confluence space (with preview/rollback) |
 | `/audit` | Gap analysis: legacy pages vs migrated docs |
 | `/validate` | Lint frontmatter, check template compliance, find broken links |
 | `/new-doc` | Scaffold a new doc from template |

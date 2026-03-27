@@ -5,14 +5,16 @@ from pathlib import Path
 
 import yaml
 
-RAW_DIR = Path("raw")
+RAW_DIR = Path("raw/current")
+RAW_DIR_FALLBACK = Path("raw")
 DOCS_DIR = Path("docs")
 
 
 def load_legacy_pages() -> list[dict]:
     """Load metadata for all fetched legacy pages."""
+    source_dir = RAW_DIR if RAW_DIR.exists() else RAW_DIR_FALLBACK
     pages = []
-    for meta_path in sorted(RAW_DIR.glob("*.meta.json")):
+    for meta_path in sorted(source_dir.glob("*.meta.json")):
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         pages.append(meta)
     return pages
