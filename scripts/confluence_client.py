@@ -139,6 +139,14 @@ class ConfluenceClient:
         """Delete a page (used for rollback of published pages)."""
         self._delete(f"/wiki/api/v2/pages/{page_id}")
 
+    # --- User operations ---
+
+    def get_user_by_id(self, account_id: str) -> dict:
+        """Fetch a user's public profile by account ID."""
+        return self._get(
+            "/wiki/rest/api/user", params={"accountId": account_id}
+        )
+
     # --- Search ---
 
     def search_pages(self, cql: str, limit: int = 25) -> list[dict]:

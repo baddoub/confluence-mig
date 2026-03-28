@@ -26,7 +26,8 @@ def fetch_page_with_body(client: ConfluenceClient, page_id: str) -> dict:
     return client.get_page_by_id(page_id, body_format="storage")
 
 
-def save_page(page: dict, labels: list[str], output_dir: Path) -> Path:
+def save_page(page: dict, labels: list[str], output_dir: Path,
+              author_name: str | None = None) -> Path:
     """Save a page's HTML body and metadata sidecar."""
     page_id = page["id"]
     title = page.get("title", "untitled")
@@ -48,6 +49,7 @@ def save_page(page: dict, labels: list[str], output_dir: Path) -> Path:
         "createdAt": page.get("createdAt"),
         "version": page.get("version", {}).get("number"),
         "authorId": page.get("authorId"),
+        "authorName": author_name,
     }
     meta_path = output_dir / f"{prefix}.meta.json"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
@@ -145,6 +147,7 @@ def main():
     fetched = 0
     skipped = 0
     errors = []
+    author_cache: dict[str, str] = {}  # authorId -> display name
 
     for page_summary in pages:
         page_id = page_summary["id"]
@@ -158,7 +161,20 @@ def main():
         try:
             page = fetch_page_with_body(client, page_id)
             labels = client.get_page_labels(page_id)
-            save_page(page, labels, snapshot_dir)
+
+            # Resolve author name (cached)
+            author_id = page.get("authorId")
+            author_name = None
+            if author_id and author_id not in author_cache:
+                try:
+                    user = client.get_user_by_id(author_id)
+                    author_cache[author_id] = user.get("displayName", "")
+                except Exception:
+                    author_cache[author_id] = ""
+            if author_id:
+                author_name = author_cache.get(author_id)
+
+            save_page(page, labels, snapshot_dir, author_name=author_name)
             fetched += 1
             print(f"  Fetched: {title}")
         except Exception as e:

@@ -217,6 +217,18 @@ def do_publish(client: ConfluenceClient, space_id: str, hierarchy: dict, docs: l
                 client, space_id, doc_path, hierarchy, parent_cache
             )
 
+            # Prepend original author info if available
+            owner = meta.get("owner")
+            if owner:
+                owner_banner = (
+                    '<ac:structured-macro ac:name="info">'
+                    "<ac:rich-text-body>"
+                    f"<p><strong>Original author:</strong> {owner}</p>"
+                    "</ac:rich-text-body>"
+                    "</ac:structured-macro>"
+                )
+                storage_body = owner_banner + storage_body
+
             if page_id:
                 # Update existing page — save previous version number for rollback
                 existing = client.get_page_by_id(str(page_id))
