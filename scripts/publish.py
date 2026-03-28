@@ -17,6 +17,7 @@ import argparse
 import json
 import sys
 from datetime import datetime, timezone
+from html import escape as html_escape
 from pathlib import Path
 
 from scripts.confluence_client import ConfluenceClient
@@ -116,9 +117,10 @@ def do_preview(docs: list[Path]):
         storage_body = markdown_to_confluence_storage(body)
 
         # Wrap in a simple HTML page for easy browser preview
+        safe_title = html_escape(title)
         html = f"""<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>{title}</title>
+<head><meta charset="utf-8"><title>{safe_title}</title>
 <style>body {{ font-family: -apple-system, sans-serif; max-width: 800px; margin: 2em auto; padding: 0 1em; }}
 table {{ border-collapse: collapse; }} td, th {{ border: 1px solid #ddd; padding: 6px 12px; }}
 pre {{ background: #f4f4f4; padding: 1em; overflow-x: auto; }}
@@ -126,12 +128,12 @@ pre {{ background: #f4f4f4; padding: 1em; overflow-x: auto; }}
 </style></head>
 <body>
 <div class="meta">
-<strong>[{action}]</strong> {doc_path}<br>
-Category: {meta.get('category', '?')} | Status: {meta.get('status', '?')} |
-Legacy page: {meta.get('legacy_page_id', 'none')} |
-Confluence page: {meta.get('confluence_page_id', 'will be created')}
+<strong>[{action}]</strong> {html_escape(str(doc_path))}<br>
+Category: {html_escape(meta.get('category', '?'))} | Status: {html_escape(meta.get('status', '?'))} |
+Legacy page: {html_escape(str(meta.get('legacy_page_id', 'none')))} |
+Confluence page: {html_escape(str(meta.get('confluence_page_id', 'will be created')))}
 </div>
-<h1>{title}</h1>
+<h1>{safe_title}</h1>
 {storage_body}
 </body></html>"""
 
@@ -196,18 +198,19 @@ def do_rollback(client: ConfluenceClient):
         page_id = page_info["page_id"]
         title = page_info["title"]
         doc_path = Path(page_info["doc_path"])
-        original_space_id = page_info["original_space_id"]
+        original_space_key = page_info["original_space_key"]
         original_parent_id = page_info.get("original_parent_id")
 
         try:
             existing = client.get_page_by_id(page_id)
             version = existing["version"]["number"]
 
-            # Move back with original content (storage body from current page)
-            body = existing.get("body", {}).get("storage", {}).get("value", "")
+            # v2 API nests body under body.storage.value
+            body_obj = existing.get("body", {})
+            body = body_obj.get("storage", {}).get("value", "")
             client.move_page(
                 page_id=page_id,
-                target_space_id=original_space_id,
+                target_space_key=original_space_key,
                 title=title,
                 body=body,
                 version=version,
@@ -239,8 +242,8 @@ def do_rollback(client: ConfluenceClient):
     print(f"\nRollback: {', '.join(parts)}")
 
 
-def do_move(client: ConfluenceClient, target_space_id: str, legacy_space_id: str,
-            hierarchy: dict, docs: list[Path]):
+def do_move(client: ConfluenceClient, target_space_id: str, target_space_key: str,
+            legacy_space_key: str, hierarchy: dict, docs: list[Path]):
     """Move legacy pages to the new space and update their content.
 
     Preserves: owner, version history, comments, attachments.
@@ -250,7 +253,6 @@ def do_move(client: ConfluenceClient, target_space_id: str, legacy_space_id: str
     parent_cache: dict[str, str] = {}
     moved = 0
     created = 0
-    skipped = 0
     errors = []
 
     run_record = {
@@ -278,12 +280,12 @@ def do_move(client: ConfluenceClient, target_space_id: str, legacy_space_id: str
                 # Move the existing legacy page to the new space
                 existing = client.get_page_by_id(str(legacy_page_id))
                 version = existing["version"]["number"]
-                original_space_id = existing.get("spaceId", legacy_space_id)
+                original_space_key = legacy_space_key
                 original_parent_id = existing.get("parentId")
 
                 client.move_page(
                     page_id=str(legacy_page_id),
-                    target_space_id=target_space_id,
+                    target_space_key=target_space_key,
                     title=title,
                     body=storage_body,
                     version=version,
@@ -294,7 +296,7 @@ def do_move(client: ConfluenceClient, target_space_id: str, legacy_space_id: str
                     "page_id": str(legacy_page_id),
                     "title": title,
                     "doc_path": str(doc_path),
-                    "original_space_id": original_space_id,
+                    "original_space_key": original_space_key,
                     "original_parent_id": original_parent_id,
                     "previous_version": version,
                 })
@@ -334,7 +336,7 @@ def do_move(client: ConfluenceClient, target_space_id: str, legacy_space_id: str
     log["runs"].append(run_record)
     save_publish_log(log)
 
-    print(f"\nSummary: {moved} moved, {created} created, {skipped} skipped, {len(errors)} errors")
+    print(f"\nSummary: {moved} moved, {created} created, {len(errors)} errors")
     print(f"Publish log: {PUBLISH_LOG_PATH}")
     if moved > 0 or created > 0:
         print("To undo: python scripts/publish.py --rollback")
@@ -374,7 +376,7 @@ def do_publish(client: ConfluenceClient, space_id: str, hierarchy: dict, docs: l
                 owner_banner = (
                     '<ac:structured-macro ac:name="info">'
                     "<ac:rich-text-body>"
-                    f"<p><strong>Original author:</strong> {owner}</p>"
+                    f"<p><strong>Original author:</strong> {html_escape(str(owner))}</p>"
                     "</ac:rich-text-body>"
                     "</ac:structured-macro>"
                 )
@@ -484,10 +486,9 @@ def main():
 
     if args.move:
         legacy_space = client.get_space_by_key(legacy_key)
-        legacy_space_id = str(legacy_space["id"])
         print(f"Moving from: {legacy_space['name']} (key={legacy_key})")
         print(f"Moving to:   {new_space['name']} (key={new_key})")
-        do_move(client, new_space_id, legacy_space_id, hierarchy, docs)
+        do_move(client, new_space_id, new_key, legacy_key, hierarchy, docs)
     else:
         print(f"Publishing to: {new_space['name']} (key={new_key})")
         do_publish(client, new_space_id, hierarchy, docs)

@@ -114,11 +114,15 @@ cp .env.example .env
 # Fetch legacy pages
 python scripts/fetch_space.py
 
+# Analyze content before restructuring
+python scripts/discover.py
+
 # Convert fetched HTML to markdown
 python scripts/convert.py
 
 # Publish to new Confluence space
-python scripts/publish.py
+python scripts/publish.py            # create mode
+python scripts/publish.py --move     # move mode (preserves owners)
 
 # Run gap audit
 python scripts/audit.py

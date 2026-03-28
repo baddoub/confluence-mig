@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import yaml
+from scripts.utils import load_yaml
 
 CONFIG_DIR = Path("config")
 
@@ -51,8 +51,7 @@ class ClassificationResult:
 
 
 def _load_yaml(path: Path) -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f) or {}
+    return load_yaml(path)
 
 
 def _score_keywords(

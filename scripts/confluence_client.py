@@ -136,25 +136,25 @@ class ConfluenceClient:
         return self._put(f"/wiki/api/v2/pages/{page_id}", payload)
 
     def move_page(
-        self, page_id: str, target_space_id: str, title: str, body: str,
+        self, page_id: str, target_space_key: str, title: str, body: str,
         version: int, parent_id: str | None = None,
     ) -> dict:
         """Move a page to a different space and update its content.
 
-        Confluence v2 API handles move via PUT with a new spaceId.
-        This preserves owner, version history, comments, and attachments.
+        Uses v1 API for cross-space moves (v2 PUT does not reliably support
+        changing spaceId). This preserves owner, version history, comments,
+        and attachments.
         """
         payload = {
-            "id": page_id,
-            "spaceId": target_space_id,
-            "status": "current",
+            "type": "page",
             "title": title,
-            "body": {"representation": "storage", "value": body},
+            "space": {"key": target_space_key},
+            "body": {"storage": {"representation": "storage", "value": body}},
             "version": {"number": version + 1},
         }
         if parent_id:
-            payload["parentId"] = parent_id
-        return self._put(f"/wiki/api/v2/pages/{page_id}", payload)
+            payload["ancestors"] = [{"id": parent_id}]
+        return self._put(f"/wiki/rest/api/content/{page_id}", payload)
 
     def delete_page(self, page_id: str) -> None:
         """Delete a page (used for rollback of published pages)."""
