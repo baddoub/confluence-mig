@@ -1,10 +1,15 @@
-Push docs from `docs/` to the new Confluence space. Non-destructive — only writes to the new space.
+Push docs from `docs/` to the new Confluence space.
 
-1. Run `python scripts/publish.py --preview` first — writes HTML to `preview/` for review.
-2. Run `python scripts/publish.py --dry-run` to see what would be created/updated.
-3. Run `python scripts/publish.py` to publish for real.
-4. Run `python scripts/publish.py --rollback` to undo the last publish.
+**Two modes:**
+- **Create (default):** creates new pages in the new space. Legacy untouched.
+- **Move (`--move`):** moves legacy pages to the new space and updates content. Preserves owner, version history, comments, and attachments.
 
-Only publishes docs with `status: published` or `status: review` in frontmatter. After publish, updates `confluence_page_id` and `last_synced` in each doc. Every run is logged to `raw/publish_log.json`.
+**Workflow:**
+1. `python scripts/publish.py --preview` — writes HTML to `preview/` for review
+2. `python scripts/publish.py --dry-run` — shows CREATE/UPDATE/MOVE plan
+3. `python scripts/publish.py` or `python scripts/publish.py --move` — execute
+4. `python scripts/publish.py --rollback` — undo (deletes created pages or moves back)
 
-Requires `.env` with `CONFLUENCE_URL`, `CONFLUENCE_EMAIL`, `CONFLUENCE_API_TOKEN`, and `NEW_SPACE_KEY`.
+Only publishes docs with `status: published` or `status: review`. Every run is logged to `raw/publish_log.json`.
+
+Requires `.env` with `CONFLUENCE_URL`, `CONFLUENCE_EMAIL`, `CONFLUENCE_API_TOKEN`.

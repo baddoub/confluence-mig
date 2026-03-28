@@ -43,8 +43,9 @@ python scripts/discover.py
 # 5. Preview and publish
 python scripts/publish.py --preview     # inspect HTML locally
 python scripts/publish.py --dry-run     # see what would happen
-python scripts/publish.py               # publish to new space
-python scripts/publish.py --rollback    # undo if needed
+python scripts/publish.py               # create pages in new space
+python scripts/publish.py --move        # OR move legacy pages (keeps owner/history)
+python scripts/publish.py --rollback    # undo (delete or move back)
 ```
 
 ## Doc structure

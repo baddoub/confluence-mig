@@ -71,8 +71,9 @@ New docs must start from a template in `templates/`:
 
 - **`/fetch`** creates timestamped snapshots in `raw/snapshots/`. Previous fetches are preserved. Restore any snapshot with `--restore TIMESTAMP`.
 - **`/publish`** only writes to the **new** space. Every run is logged to `raw/publish_log.json`. Undo with `--rollback`.
+- **`/publish --move`** moves legacy pages to the new space (preserves owner, history, comments, attachments). Rollback moves them back.
 - **`/publish --preview`** converts docs to HTML in `preview/` so you can inspect the output before touching Confluence.
-- **`/publish --dry-run`** shows what would be created/updated without making API calls.
+- **`/publish --dry-run`** shows what would be created/updated/moved without making API calls.
 
 ### Migration workflow (safe)
 

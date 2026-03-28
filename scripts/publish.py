@@ -1,14 +1,16 @@
 """Publish markdown docs from docs/ to the new Confluence space.
 
-NON-DESTRUCTIVE: Legacy pages are never modified or deleted.
+NON-DESTRUCTIVE: Legacy pages are never modified or deleted (unless --move).
 All operations target the NEW space only. Every publish is logged to
-raw/publish_log.json for rollback. Use --rollback to unpublish pages
-created by a previous publish run.
+raw/publish_log.json for rollback.
 
 MODES:
-  --dry-run     Preview what would be created/updated (no API calls)
+  (default)     Create/update pages in the new space (legacy untouched)
+  --move        Move legacy pages to new space + update content (preserves owner,
+                history, comments, attachments). Rollback moves them back.
+  --dry-run     Preview what would be created/updated/moved (no API calls)
   --preview     Dry-run + write converted HTML to preview/ for review
-  --rollback    Remove pages created by the last publish from the new space
+  --rollback    Undo the last publish run (delete created pages or move back)
 """
 
 import argparse
@@ -144,24 +146,33 @@ Confluence page: {meta.get('confluence_page_id', 'will be created')}
 
 
 def do_rollback(client: ConfluenceClient):
-    """Remove pages created by the last publish run from the new space."""
+    """Undo the last publish run: delete created pages, move back moved pages."""
     log = load_publish_log()
     if not log["runs"]:
         print("No publish runs to roll back.")
         return
 
     last_run = log["runs"][-1]
-    created_pages = last_run.get("created_pages", [])
-    if not created_pages:
-        print(f"Last run ({last_run['timestamp']}) created no pages. Nothing to roll back.")
+    if last_run.get("rolled_back"):
+        print(f"Last run ({last_run['timestamp']}) was already rolled back.")
         return
 
-    print(f"Rolling back publish run: {last_run['timestamp']}")
-    print(f"Pages to remove: {len(created_pages)}")
+    mode = last_run.get("mode", "create")
+    created_pages = last_run.get("created_pages", [])
+    moved_pages = last_run.get("moved_pages", [])
+
+    if not created_pages and not moved_pages:
+        print(f"Last run ({last_run['timestamp']}) has nothing to roll back.")
+        return
+
+    print(f"Rolling back {mode} run: {last_run['timestamp']}")
 
     removed = 0
+    moved_back = 0
     errors = []
-    for page_info in reversed(created_pages):  # Reverse to remove children first
+
+    # Roll back created pages (delete them)
+    for page_info in reversed(created_pages):
         page_id = page_info["confluence_page_id"]
         title = page_info["title"]
         doc_path = Path(page_info["doc_path"])
@@ -169,9 +180,8 @@ def do_rollback(client: ConfluenceClient):
         try:
             client.delete_page(page_id)
             removed += 1
-            print(f"  Removed: {title} (id={page_id})")
+            print(f"  Deleted: {title} (id={page_id})")
 
-            # Clear confluence_page_id from frontmatter
             if doc_path.exists():
                 update_frontmatter(doc_path, {
                     "confluence_page_id": None,
@@ -181,12 +191,153 @@ def do_rollback(client: ConfluenceClient):
             errors.append({"page_id": page_id, "title": title, "error": str(e)})
             print(f"  ERROR: {title} - {e}", file=sys.stderr)
 
-    # Mark the run as rolled back
+    # Roll back moved pages (move them back to original space)
+    for page_info in reversed(moved_pages):
+        page_id = page_info["page_id"]
+        title = page_info["title"]
+        doc_path = Path(page_info["doc_path"])
+        original_space_id = page_info["original_space_id"]
+        original_parent_id = page_info.get("original_parent_id")
+
+        try:
+            existing = client.get_page_by_id(page_id)
+            version = existing["version"]["number"]
+
+            # Move back with original content (storage body from current page)
+            body = existing.get("body", {}).get("storage", {}).get("value", "")
+            client.move_page(
+                page_id=page_id,
+                target_space_id=original_space_id,
+                title=title,
+                body=body,
+                version=version,
+                parent_id=original_parent_id,
+            )
+            moved_back += 1
+            print(f"  Moved back: {title} (id={page_id})")
+
+            if doc_path.exists():
+                update_frontmatter(doc_path, {
+                    "confluence_page_id": None,
+                    "last_synced": None,
+                })
+        except Exception as e:
+            errors.append({"page_id": page_id, "title": title, "error": str(e)})
+            print(f"  ERROR: {title} - {e}", file=sys.stderr)
+
     last_run["rolled_back"] = True
     last_run["rolled_back_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     save_publish_log(log)
 
-    print(f"\nRollback: {removed} removed, {len(errors)} errors")
+    parts = []
+    if removed:
+        parts.append(f"{removed} deleted")
+    if moved_back:
+        parts.append(f"{moved_back} moved back")
+    if errors:
+        parts.append(f"{len(errors)} errors")
+    print(f"\nRollback: {', '.join(parts)}")
+
+
+def do_move(client: ConfluenceClient, target_space_id: str, legacy_space_id: str,
+            hierarchy: dict, docs: list[Path]):
+    """Move legacy pages to the new space and update their content.
+
+    Preserves: owner, version history, comments, attachments.
+    Only moves pages that have a legacy_page_id in frontmatter.
+    Pages without legacy_page_id are created normally.
+    """
+    parent_cache: dict[str, str] = {}
+    moved = 0
+    created = 0
+    skipped = 0
+    errors = []
+
+    run_record = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "mode": "move",
+        "total_docs": len(docs),
+        "moved_pages": [],
+        "created_pages": [],
+        "errors": [],
+        "rolled_back": False,
+    }
+
+    for doc_path in docs:
+        meta, body = parse_frontmatter(doc_path)
+        title = meta.get("title", doc_path.stem)
+        legacy_page_id = meta.get("legacy_page_id")
+
+        try:
+            storage_body = markdown_to_confluence_storage(body)
+            parent_id = resolve_parent_page(
+                client, target_space_id, doc_path, hierarchy, parent_cache
+            )
+
+            if legacy_page_id:
+                # Move the existing legacy page to the new space
+                existing = client.get_page_by_id(str(legacy_page_id))
+                version = existing["version"]["number"]
+                original_space_id = existing.get("spaceId", legacy_space_id)
+                original_parent_id = existing.get("parentId")
+
+                client.move_page(
+                    page_id=str(legacy_page_id),
+                    target_space_id=target_space_id,
+                    title=title,
+                    body=storage_body,
+                    version=version,
+                    parent_id=parent_id,
+                )
+                moved += 1
+                run_record["moved_pages"].append({
+                    "page_id": str(legacy_page_id),
+                    "title": title,
+                    "doc_path": str(doc_path),
+                    "original_space_id": original_space_id,
+                    "original_parent_id": original_parent_id,
+                    "previous_version": version,
+                })
+                print(f"  Moved: {title} (id={legacy_page_id}, v{version} -> v{version + 1})")
+
+                now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                update_frontmatter(doc_path, {
+                    "confluence_page_id": legacy_page_id,
+                    "last_synced": now,
+                })
+            else:
+                # No legacy page — create new
+                page = client.create_page(target_space_id, title, storage_body, parent_id)
+                page_id = page["id"]
+                created += 1
+                run_record["created_pages"].append({
+                    "confluence_page_id": str(page_id),
+                    "title": title,
+                    "doc_path": str(doc_path),
+                })
+                print(f"  Created: {title} (id={page_id})")
+
+                now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                update_frontmatter(doc_path, {
+                    "confluence_page_id": page_id,
+                    "last_synced": now,
+                })
+
+        except Exception as e:
+            errors.append({"path": str(doc_path), "title": title, "error": str(e)})
+            run_record["errors"].append(
+                {"doc_path": str(doc_path), "title": title, "error": str(e)}
+            )
+            print(f"  ERROR: {title} - {e}", file=sys.stderr)
+
+    log = load_publish_log()
+    log["runs"].append(run_record)
+    save_publish_log(log)
+
+    print(f"\nSummary: {moved} moved, {created} created, {skipped} skipped, {len(errors)} errors")
+    print(f"Publish log: {PUBLISH_LOG_PATH}")
+    if moved > 0 or created > 0:
+        print("To undo: python scripts/publish.py --rollback")
 
 
 def do_publish(client: ConfluenceClient, space_id: str, hierarchy: dict, docs: list[Path]):
@@ -281,11 +432,14 @@ def main():
     parser = argparse.ArgumentParser(description="Publish docs to Confluence (non-destructive)")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be published")
     parser.add_argument("--preview", action="store_true", help="Dry-run + write HTML preview files")
-    parser.add_argument("--rollback", action="store_true", help="Remove pages from last publish run")
+    parser.add_argument("--move", action="store_true",
+                        help="Move legacy pages to new space (preserves owner/history/comments)")
+    parser.add_argument("--rollback", action="store_true", help="Undo last publish run")
     args = parser.parse_args()
 
     config = load_space_config()
     new_key = config["new"]["space_key"]
+    legacy_key = config["legacy"]["space_key"]
     hierarchy = config["new"].get("hierarchy", {})
 
     if args.preview:
@@ -303,9 +457,8 @@ def main():
         do_rollback(client)
         return
 
-    space = client.get_space_by_key(new_key)
-    space_id = str(space["id"])
-    print(f"Publishing to: {space['name']} (key={new_key})")
+    new_space = client.get_space_by_key(new_key)
+    new_space_id = str(new_space["id"])
 
     docs = find_publishable_docs()
     if not docs:
@@ -317,13 +470,27 @@ def main():
     if args.dry_run:
         for doc in docs:
             meta, _ = parse_frontmatter(doc)
-            action = "UPDATE" if meta.get("confluence_page_id") else "CREATE"
+            has_legacy = bool(meta.get("legacy_page_id"))
+            if args.move and has_legacy:
+                action = "MOVE"
+            elif meta.get("confluence_page_id"):
+                action = "UPDATE"
+            else:
+                action = "CREATE"
             print(f"  [{action}] {meta.get('title', doc.stem)} ({doc})")
-        print("\nTo preview HTML output: python scripts/publish.py --preview")
-        print("To publish for real:    python scripts/publish.py")
+        mode_hint = " --move" if args.move else ""
+        print(f"\nTo publish for real: python scripts/publish.py{mode_hint}")
         return
 
-    do_publish(client, space_id, hierarchy, docs)
+    if args.move:
+        legacy_space = client.get_space_by_key(legacy_key)
+        legacy_space_id = str(legacy_space["id"])
+        print(f"Moving from: {legacy_space['name']} (key={legacy_key})")
+        print(f"Moving to:   {new_space['name']} (key={new_key})")
+        do_move(client, new_space_id, legacy_space_id, hierarchy, docs)
+    else:
+        print(f"Publishing to: {new_space['name']} (key={new_key})")
+        do_publish(client, new_space_id, hierarchy, docs)
 
 
 if __name__ == "__main__":
