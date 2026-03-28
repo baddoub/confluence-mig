@@ -37,8 +37,8 @@ python scripts/discover.py
 # 3. Convert and classify into docs/ (via Claude Code skill)
 #    /restructure
 
-# 4. Validate docs
-#    /validate
+# 4. Validate docs quality
+python scripts/validate.py
 
 # 5. Preview and publish
 python scripts/publish.py --preview     # inspect HTML locally

@@ -124,6 +124,9 @@ python scripts/convert.py
 python scripts/publish.py            # create mode
 python scripts/publish.py --move     # move mode (preserves owners)
 
+# Validate docs quality
+python scripts/validate.py
+
 # Run gap audit
 python scripts/audit.py
 ```

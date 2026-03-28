@@ -1,9 +1,13 @@
 """Shared utilities used across migration scripts."""
 
+import os
 import re
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def slugify(title: str, max_len: int = 80) -> str:
@@ -19,8 +23,24 @@ def load_yaml(path: str | Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
+def _expand_env_vars(obj):
+    """Recursively expand ${VAR} placeholders in strings from environment."""
+    if isinstance(obj, str):
+        return re.sub(
+            r"\$\{(\w+)\}",
+            lambda m: os.environ.get(m.group(1), m.group(0)),
+            obj,
+        )
+    if isinstance(obj, dict):
+        return {k: _expand_env_vars(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_expand_env_vars(item) for item in obj]
+    return obj
+
+
 def load_space_config() -> dict:
-    return load_yaml("config/spaces.yaml")
+    config = load_yaml("config/spaces.yaml")
+    return _expand_env_vars(config)
 
 
 def parse_frontmatter(filepath: Path) -> tuple[dict, str]:

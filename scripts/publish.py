@@ -72,8 +72,9 @@ def resolve_parent_page(
     if parent_title in parent_cache:
         return parent_cache[parent_title]
 
+    safe_title = parent_title.replace('"', '\\"')
     results = client.search_pages(
-        f'space.key="{space_id}" AND title="{parent_title}" AND type=page'
+        f'space.key="{space_id}" AND title="{safe_title}" AND type=page'
     )
     if results:
         parent_id = results[0]["id"]
